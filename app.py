@@ -6,7 +6,7 @@ from time import sleep
 
 from mistralai.client import Mistral
 from resume_parser import parse_resume_pdf
-from bd_calls import get_all_questions, get_answers_by_id
+from db_calls import get_all_questions, get_answers_by_id
 
 def get_questions_from_llm(raw_resume: str, questions: list) -> list:
     # TODO: check how to safely store a secret in a docker container
