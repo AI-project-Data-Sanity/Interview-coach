@@ -7,7 +7,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 load_dotenv()
 
 from resume_parser import parse_resume_pdf
-from bd_calls import get_all_questions
+from db_calls import get_all_questions
 # from app import get_questions_from_llm  # uncomment when ready
 
 
