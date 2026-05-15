@@ -1,9 +1,12 @@
+import os
 import re
+import requests
 from pathlib import Path
 from typing import Union
-
 import pymupdf
+from mistralai.client import Mistral
 
+from dotenv import load_dotenv
 
 _NOISE_PATTERNS = [
     r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b",  # dates like 12/05/2024
@@ -13,6 +16,28 @@ _NOISE_PATTERNS = [
     r"\blinkedin\.com/\S+\b",
     r"\bgithub\.com/\S+\b",
 ]
+
+load_dotenv()
+mistral_key = os.environ["MISTRAL_KEY"]
+
+def check_resume(raw_text: str):
+    mistral_model_name = "mistral-small-latest"
+    mistral_client = Mistral(api_key=mistral_key)
+    system_prompt = f"""
+        You are a concise resume classifier. 
+        Given the following resume text, answer whether it is an IT resume, that suitable for a behavioral interview.
+        Be optimistic enough, but restric irrelevant professions or not resume files.
+        Return just a single number: 1 if it is an IT resume, 0 otherwise.
+        """
+    user_prompt = f"""
+        RESUME TEXT: 
+        {raw_text}
+        """
+
+    messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
+    response = mistral_client.chat.complete(model=mistral_model_name, messages=messages)
+    is_resume = int(response.choices[0].message.content)
+    return is_resume
 
 
 def parse_resume_pdf(pdf_path: Union[str, Path]) -> str:
@@ -33,7 +58,12 @@ def parse_resume_pdf(pdf_path: Union[str, Path]) -> str:
         Cleaned resume text.
     """
     doc = pymupdf.open(pdf_path)
+    if len(doc) > 10:
+        raise Exception("Too long for a resume.")
     raw_text = '\n'.join([page.get_text() for page in doc])
+
+    if not check_resume(raw_text):
+        raise Exception("Not an IT resume.")
 
     # Normalize whitespace and line endings
     lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
