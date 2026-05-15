@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Union
 from time import sleep
 
-from mistralai.client import Mistral
+from mistralai import Mistral
 from resume_parser import parse_resume_pdf
 from db_calls import (
     add_user, save_resume_db, get_resume_db,
