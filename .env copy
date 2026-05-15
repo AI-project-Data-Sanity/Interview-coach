@@ -1,2 +1,3 @@
 TELEGRAM_BOT_TOKEN=your_token_here
 MISTRAL_KEY=your_mistral_key_here
+DB_PATH=path-to-your-database.db
