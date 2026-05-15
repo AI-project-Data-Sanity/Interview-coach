@@ -9,49 +9,36 @@ from telegram.ext import (
 
 load_dotenv()
 
-from resume_parser import parse_resume_pdf
-from db_calls import get_all_questions
-# from app import get_questions_from_llm  # uncomment when ready
+from app import register_user
+from app import save_resume
+from app import get_question_list
+from app import get_question_text_by_id
+from app import get_llm_feedback
 
 DB_PATH = "data/interview.db"
 
 AFTER_START, WAITING_FOR_PDF, AFTER_RESUME, IN_INTERVIEW = range(4)
 
-
-# --- API stubs (replace with real HTTP calls) ---
-
-def api_register_user(user_id: int):
-    # POST /users  body: {user_id}
-    pass
-
-def api_save_resume(user_id: int, text: str):
-    # POST /resumes  body: {user_id, text}
-    pass
-
-def api_finish_session(user_id: int):
-    # POST /sessions/finish  body: {user_id}
-    pass
-
-def api_get_feedback(user_id: int, question_id: int, answer: str) -> str:
-    # POST /feedback  body: {user_id, question_id, answer}
-    # Returns feedback string
-    known_answers = get_answers_by_id(DB_PATH, question_id)
-    return f"Known good answers for reference:\n" + "\n".join(
-        f"- [{a['mark']}] {a['answer']} ({a['reason']})" for a in known_answers
-    )
-
-
 # --- Handlers ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    api_register_user(user_id)
+    user_name = update.message.from_user.username
+
+    try:
+        register_user(user_id, user_name)
+    except Exception as e:
+        await update.message.reply_text(f"Registration failed. Please try again later.\n{e}")
+        return ConversationHandler.END
+    # allow_reentry=True lets users call /start mid-session; clear stale resume/questions from previous run
     context.user_data.clear()
+
     await update.message.reply_text(
         "Welcome to Interview Coach!\n"
         "Use /send_resume to upload your resume PDF.\n"
         "Use /finish to end the session."
     )
+
     return AFTER_START
 
 
@@ -64,27 +51,30 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def send_resume_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def send_resume_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Please send your resume as a PDF file.")
     return WAITING_FOR_PDF
 
 
-async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_document(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     doc = update.message.document
+
     if doc.mime_type != "application/pdf":
         await update.message.reply_text("That doesn't look like a PDF. Please send a PDF file.")
         return WAITING_FOR_PDF
-
-    await update.message.reply_text("Received your resume, processing...")
 
     user_id = update.message.from_user.id
     file = await doc.get_file()
     pdf_path = Path(f"/tmp/{doc.file_id}.pdf")
     await file.download_to_drive(pdf_path)
 
-    resume_text = parse_resume_pdf(pdf_path)
-    context.user_data["resume_text"] = resume_text
-    api_save_resume(user_id, resume_text)
+    await update.message.reply_text("Received your resume, processing...")
+
+    try:
+        save_resume(user_id, pdf_path)
+    except Exception as e:
+        await update.message.reply_text(f"Failed to save resume. Please try again.\n{e}")
+        return WAITING_FOR_PDF
 
     await update.message.reply_text(
         "Resume saved!\n"
@@ -95,60 +85,51 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start_interview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    resume_text = context.user_data.get("resume_text", "")
 
     await update.message.reply_text("Preparing your questions...")
 
-    all_questions = get_all_questions(DB_PATH)
-    question_ids = get_questions_from_llm(resume_text, all_questions)
-    questions = [q for q in all_questions if q["question_id"] in question_ids]
+    question_ids = get_question_list(user_id)
 
-    if not questions:
+    if not question_ids:
         await update.message.reply_text(
             "Could not generate questions. Please try uploading your resume again with /send_resume."
         )
         return AFTER_RESUME
 
-    context.user_data["questions"] = questions
+    context.user_data["question_ids"] = question_ids
     context.user_data["current_index"] = 0
 
-    first = questions[0]
+    first_text = get_question_text_by_id(question_ids[0])
     await update.message.reply_text(
-        f"Question 1/{len(questions)}:\n\n{first['question']}"
+        f"Question 1/{len(question_ids)}:\n\n{first_text}"
     )
     return IN_INTERVIEW
 
 
 async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    questions = context.user_data["questions"]
+    questions_ids = context.user_data["question_ids"]
     index = context.user_data["current_index"]
-    current_question = questions[index]
+    current_question_id = questions_ids[index]
 
     answer = update.message.text
-    feedback = api_get_feedback(user_id, current_question["question_id"], answer)
+    feedback = get_llm_feedback(user_id, current_question_id, answer)
     await update.message.reply_text(f"Feedback:\n{feedback}")
 
     next_index = index + 1
-    if next_index >= len(questions):
-        api_finish_session(user_id)
-        context.user_data.clear()
-        await update.message.reply_text(
-            "Interview complete! Well done.\nUse /start to begin a new session."
-        )
-        return ConversationHandler.END
+    if next_index >= len(questions_ids):
+        await update.message.reply_text("Interview complete! Well done.")
+        return await finish(update, context)
 
     context.user_data["current_index"] = next_index
-    next_q = questions[next_index]
+    next_q_text = get_question_text_by_id(questions_ids[next_index])
     await update.message.reply_text(
-        f"Question {next_index + 1}/{len(questions)}:\n\n{next_q['question']}"
+        f"Question {next_index + 1}/{len(questions_ids)}:\n\n{next_q_text}"
     )
     return IN_INTERVIEW
 
 
 async def finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    api_finish_session(user_id)
     context.user_data.clear()
     await update.message.reply_text("Session ended. Use /start to begin again.")
     return ConversationHandler.END

@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from time import sleep
 
-from mistralai.client import Mistral
+from mistralai import Mistral
 from resume_parser import parse_resume_pdf
 from db_calls import get_all_questions, get_answers_by_id
 
