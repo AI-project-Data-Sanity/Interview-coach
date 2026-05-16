@@ -65,7 +65,7 @@ async def handle_document(update: Update, _context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.message.from_user.id
     file = await doc.get_file()
-    pdf_path = Path(f"/tmp/{doc.file_id}.pdf")
+    pdf_path = Path(f"data/{doc.file_id}.pdf")
     await file.download_to_drive(pdf_path)
 
     await update.message.reply_text("Received your resume, processing...")
