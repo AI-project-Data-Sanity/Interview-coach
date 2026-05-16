@@ -120,6 +120,10 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_question_id = questions_ids[index]
 
     answer = update.message.text
+    if len(answer) > 3000:
+        await update.message.reply_text("Your answer is too long. Please send a shorter one (up to 3000 characters).")
+        return IN_INTERVIEW
+
     try:
         feedback = get_llm_feedback(user_id, current_question_id, answer)
     except Exception as e:
