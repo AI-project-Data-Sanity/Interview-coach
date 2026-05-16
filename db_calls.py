@@ -1,6 +1,11 @@
+import os
 import sqlite3
+from dotenv import load_dotenv
 
-def get_all_questions(db_path: str)->list:
+load_dotenv()
+db_path = os.environ["DB_PATH"]
+
+def get_all_questions()->list:
     """
     Function to get all questions from database.
     Returns a list of dicts. Every dict has strictly 2 keys: question_id, question
@@ -14,7 +19,7 @@ def get_all_questions(db_path: str)->list:
     conn.close()
     return questions
 
-def get_question_by_id(db_path: str, question_id: int)->str:
+def get_question_by_id(question_id: int)->str:
     conn = sqlite3.connect(db_path)
     cursor = conn.execute("""
         select question from questions where question_id = ?""",
@@ -24,7 +29,7 @@ def get_question_by_id(db_path: str, question_id: int)->str:
     conn.close()
     return question
 
-def get_answers_by_question_id(db_path: str, id: int)->list:
+def get_answers_by_question_id(id: int)->list:
     """
     Function to get all answers associated with a question by the question id.
     Now there are always 3 generated answers for 1 question. It may become diverse.
@@ -45,7 +50,7 @@ def get_answers_by_question_id(db_path: str, id: int)->list:
     conn.close()
     return result
 
-def add_user(db_path: str, user_id: int, username: str):
+def add_user(user_id: int, username: str):
     conn = sqlite3.connect(db_path)
     cursor = conn.execute(
         """select user_id, user_name from users where user_id = ?""",
@@ -68,7 +73,7 @@ def add_user(db_path: str, user_id: int, username: str):
     conn.commit()
     conn.close()
 
-def save_resume_db(db_path: str, user_id: int, parsed_text: str):
+def save_resume_db(user_id: int, parsed_text: str):
     conn = sqlite3.connect(db_path)
     conn.execute(
         """update users set resume_text = ? where user_id = ?""",
@@ -77,7 +82,7 @@ def save_resume_db(db_path: str, user_id: int, parsed_text: str):
     conn.commit()
     conn.close()
 
-def get_resume_db(db_path: str, user_id: int):
+def get_resume_db(user_id: int):
     conn = sqlite3.connect(db_path)
     cursor = conn.execute(
         """select resume_text from users where user_id = ?""",

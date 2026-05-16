@@ -5,9 +5,8 @@ import argparse
 from dotenv import load_dotenv
 from pathlib import Path
 from typing import Union
-from time import sleep
 
-from mistralai import Mistral
+from mistralai.client import Mistral
 from resume_parser import parse_resume_pdf
 from db_calls import (
     add_user, save_resume_db, get_resume_db,
@@ -40,24 +39,24 @@ def get_questions_from_llm(raw_resume: str, questions: list) -> list:
     return chosen_ids
 
 def register_user(user_id: int, username: str):
-    add_user(db_path, user_id, username)
+    add_user(user_id, username)
 
 def save_resume(user_id: int, pdf_path: Union[str, Path]):
     parsed_text = parse_resume_pdf(pdf_path)
-    save_resume_db(db_path, user_id, parsed_text)
+    save_resume_db(user_id, parsed_text)
 
 def get_question_list(user_id: int) -> Union[list, None]:
-    parsed_text = get_resume_db(db_path, user_id)
-    questions = get_all_questions(db_path)
+    parsed_text = get_resume_db(user_id)
+    questions = get_all_questions()
     question_ids = get_questions_from_llm(parsed_text, questions)
     return question_ids
 
 def get_question_text_by_id(question_id: int)->str:
-    return get_question_by_id(db_path, question_id)
+    return get_question_by_id(question_id)
 
 def get_llm_feedback(user_id: int, question_id: int, answer:str) -> Union[str, None]:
-    question_text = get_question_by_id(db_path, question_id)
-    prefounded_answers = get_answers_by_question_id(db_path, question_id)
+    question_text = get_question_by_id(question_id)
+    prefounded_answers = get_answers_by_question_id(question_id)
     mark_to_float = {
         'bad': 0,
         'middle': 0.5,
@@ -99,13 +98,13 @@ def get_llm_feedback(user_id: int, question_id: int, answer:str) -> Union[str, N
 def main() -> None:
     parser = argparse.ArgumentParser(description="A simple parser for a simple script")
     parser.add_argument('--input-resume', help="path to the resume pdf file",
-        default="data/Chuviliaeva_resume_linkedin_old.pdf"
+        default="val/Chuviliaeva_resume_linkedin_old.pdf"
     )
     parser.add_argument('--db-path', help="path to the file with db",
-        default="data/interview.db"
+        default="val/interview.db"
     )
     parser.add_argument('--output', help="path to the output .txt file",
-        default="data/output2.txt"
+        default="val/output2.txt"
     )
     args = parser.parse_args()
 

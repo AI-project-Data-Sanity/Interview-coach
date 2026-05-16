@@ -1,23 +1,28 @@
-import numpy as np
+import os
 import pandas as pd
 import argparse
 import sqlite3
 import json
 from sklearn.model_selection import train_test_split
+from dotenv import load_dotenv
+
+load_dotenv()
+db_path = os.path.join('..', os.environ["DB_PATH"])
 
 def add_golden_answer(
         conn: sqlite3.Connection, golden_answer: str,
         question_id: int, question: str, mark: str, split: str
     ):
     conn.execute("""
-        update questions set question = ?, split = ? where question_id = ?
-        """, (question, split, question_id)
+        update questions set question = ? where question_id = ?
+        """, (question, question_id)
     )
     conn.execute("""
-        insert into answers_golden (golden_answer, question_id, mark) 
-        values (?, ?, ?);
-        """, (golden_answer, question_id, mark)
+        insert into answers_golden (golden_answer, question_id, mark, split) 
+        values (?, ?, ?, ?);
+        """, (golden_answer, question_id, mark, split)
     )
+    conn.commit()
 
 def fill_answers(
         conn: sqlite3.Connection, common_list: list[dict], matches: dict,
@@ -49,14 +54,6 @@ if __name__ == "__main__":
     Uses the matches file to find all the questions from awesome-behavioral in the db
     """
     parser = argparse.ArgumentParser(description="A simple parser to get all supporting files")
-    parser.add_argument(
-        "--data-path", help="path to the structured .csv input file",
-        default='../data/interview_answers_reindex.csv'
-    )
-    parser.add_argument(
-        "--db-path", help="path to the database file for creation or usage",
-        default='../data/interview.db'
-    )
     parser.add_argument("--matches-path",
         help="path to the file with id matches for the old questions and questions from the awesome-behavioral repo",
         default='../data/matches.json'
@@ -81,6 +78,12 @@ if __name__ == "__main__":
     with open(args.bad_answers_path) as f:
         golden_bad = json.load(f)
 
+    conn = sqlite3.connect(db_path)
+
+    """CAREFUL: deletes golden set"""
+    conn.execute("""delete from answers_golden;""")
+    conn.commit()
+
     # recounting matches to make unique and easy access
     new_matches = {}
     index_start = 90
@@ -92,11 +95,6 @@ if __name__ == "__main__":
         else:
             new_matches[new_key] = index_start
             index_start += 1
-
-    """CAREFUL: deletes golden set"""
-    conn = sqlite3.connect(args.db_path)
-    conn.execute("""delete from answers_golden;""")
-    conn.commit()
 
     fill_answers(conn, awesome_questions, new_matches, 0.5, 'good')
     bad_matches = {i: bad_ans['question_id'] for i, bad_ans in enumerate(golden_bad)}
