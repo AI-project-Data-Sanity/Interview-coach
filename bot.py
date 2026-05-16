@@ -88,7 +88,11 @@ async def start_interview(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("Preparing your questions...")
 
-    question_ids = get_question_list(user_id)
+    try:
+        question_ids = get_question_list(user_id)
+    except Exception as e:
+        await update.message.reply_text(f"Failed to generate questions. Please try again.\n{e}")
+        return AFTER_RESUME
 
     if not question_ids:
         await update.message.reply_text(
@@ -99,7 +103,11 @@ async def start_interview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["question_ids"] = question_ids
     context.user_data["current_index"] = 0
 
-    first_text = get_question_text_by_id(question_ids[0])
+    try:
+        first_text = get_question_text_by_id(question_ids[0])
+    except Exception as e:
+        await update.message.reply_text(f"Failed to load question. Please try again.\n{e}")
+        return AFTER_RESUME
     await update.message.reply_text(
         f"Question 1/{len(question_ids)}:\n\n{first_text}"
     )
@@ -113,7 +121,12 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_question_id = questions_ids[index]
 
     answer = update.message.text
-    feedback = get_llm_feedback(user_id, current_question_id, answer)
+    try:
+        feedback = get_llm_feedback(user_id, current_question_id, answer)
+    except Exception as e:
+        await update.message.reply_text(f"Failed to get feedback. Please try again.\n{e}")
+        return IN_INTERVIEW
+
     await update.message.reply_text(f"Feedback:\n{feedback}")
 
     next_index = index + 1
@@ -122,7 +135,11 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await finish(update, context)
 
     context.user_data["current_index"] = next_index
-    next_q_text = get_question_text_by_id(questions_ids[next_index])
+    try:
+        next_q_text = get_question_text_by_id(questions_ids[next_index])
+    except Exception as e:
+        await update.message.reply_text(f"Failed to load next question. Please try again.\n{e}")
+        return IN_INTERVIEW
     await update.message.reply_text(
         f"Question {next_index + 1}/{len(questions_ids)}:\n\n{next_q_text}"
     )
