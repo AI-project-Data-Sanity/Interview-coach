@@ -1,10 +1,8 @@
 import os
 from dotenv import load_dotenv
-from litellm import openrouter_key
 from mistralai.client import Mistral
 from pydantic import BaseModel, Field
 
-from db_calls import get_question_by_id, get_answers_by_question_id
 
 load_dotenv()
 mistral_key = os.environ["MISTRAL_KEY"]

@@ -15,7 +15,6 @@ from app import get_question_list
 from app import get_question_text_by_id
 from app import get_llm_feedback
 
-DB_PATH = "data/interview.db"
 
 AFTER_START, WAITING_FOR_PDF, AFTER_RESUME, IN_INTERVIEW = range(4)
 
