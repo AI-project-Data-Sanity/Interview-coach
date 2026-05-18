@@ -81,8 +81,8 @@ if __name__ == "__main__":
     conn = sqlite3.connect(db_path)
 
     """CAREFUL: deletes golden set"""
-    conn.execute("""delete from answers_golden;""")
-    conn.commit()
+    ''' conn.execute("""delete from answers_golden;""") '''
+    """ conn.commit() """
 
     # recounting matches to make unique and easy access
     new_matches = {}

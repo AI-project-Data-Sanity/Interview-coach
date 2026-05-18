@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Union
 
 from mistralai.client import Mistral
+
+from llm_calls import response_evaluator
 from resume_parser import parse_resume_pdf
 from db_calls import (
     add_user, save_resume_db, get_resume_db,
@@ -15,8 +17,6 @@ from db_calls import (
 
 load_dotenv()
 mistral_key = os.environ["MISTRAL_KEY"]
-db_path = os.environ["DB_PATH"]
-
 
 def get_questions_from_llm(raw_resume: str, questions: list) -> list:
     # TODO: add models diversity
@@ -57,43 +57,21 @@ def get_question_text_by_id(question_id: int)->str:
 def get_llm_feedback(user_id: int, question_id: int, answer:str) -> Union[str, None]:
     question_text = get_question_by_id(question_id)
     prefounded_answers = get_answers_by_question_id(question_id)
-    mark_to_float = {
-        'bad': 0,
-        'middle': 0.5,
-        'good': 1,
-    }
+    assessment = response_evaluator(question_text, answer, prefounded_answers)
 
-    answers_strs = f""""""
-    for ans in prefounded_answers:
-        answers_strs += 'answer: ' + ans['answer'] + '\n' +\
-            'mark: ' + str(mark_to_float[ans['mark']]) + '\n' +\
-            'explanation: ' + ans['reason'] + '\n\n'
+    result = f"**Mark**: {assessment.mark}\n"
+    result += f"**STAR usage**: {assessment.STAR}\n"
+    result += f"**Motivation**: {assessment.motivation}\n"
+    result += f"**Proactivity**: {assessment.proactivity}\n"
+    result += f"**Adaptability**:  {assessment.adaptability}\n"
+    result += f"**Perseverance**: {assessment.perseverance}\n"
+    result += f"**Nonconflicteness**: {assessment.nonconflicteness}\n"
+    result += f"**Empathy**: {assessment.empathy}\n"
+    result += f"**Growth**: {assessment.growth}\n"
+    result += f"**Communication**: {assessment.communication}\n"
 
-    mistral_model_name = "mistral-small-latest"
-    mistral_client = Mistral(api_key=mistral_key)
-    system_prompt = f"""
-        You are an HR in a big firm. You are assessing candidates answer to the given question.
-        QUESTIONS:
-        {question_text}
-            
-        Provide mark form 0: bad to 1: good and reasoning about the candidate. 
-        Don't provide any source of your mark. It should naturally follow from thr reasoning.
-        Reason about candidate's motivation, empathy and managing skills. 
-        Check the usage of the STAR framework.
-               
-        Base your response on the given examples:
-        ANSWERS:
-        {answers_strs}
-        """
-    print(system_prompt)
-    user_prompt = f""" 
-            ANSWER: 
-            {answer}
-        """
-    messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
-    response = mistral_client.chat.complete(model=mistral_model_name, messages=messages)
-    # add results to the DB?
-    return response.choices[0].message.content
+    # log in the DB???
+    return result
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="A simple parser for a simple script")

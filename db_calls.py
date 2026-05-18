@@ -1,4 +1,5 @@
 import os
+import json
 import sqlite3
 from dotenv import load_dotenv
 
@@ -91,3 +92,22 @@ def get_resume_db(user_id: int):
     res = cursor.fetchall()[0]
     conn.close()
     return res
+
+def get_golden_set(split = 'val'):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute("""
+        select golden_answer, question_id, mark, split from answers_golden
+        where split = ?
+        """, (split,)
+    )
+
+    res = [ {
+        "answer": row[0],
+        "question_id": row[1],
+        "mark": row[2]
+    } for row in cursor.fetchall()]
+    conn.close()
+    return res
+
+if __name__ == '__main__':
+    pass
