@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 import time
 import argparse
@@ -25,7 +26,14 @@ def mark_evaluator(split = 'val'):
     for g in tqdm(golden_set):
         question_text = get_question_by_id(g['question_id'])
         prefounded_answers = get_answers_by_question_id(g['question_id'])
-        feedback = response_evaluator(question_text, g['answer'], prefounded_answers)
+        for attempt in range(3):
+            try:
+                feedback = response_evaluator(question_text, g['answer'], prefounded_answers)
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                time.sleep(2 * (attempt + 1))
         got_marks.append(feedback.mark)
         golden_marks.append(mark_to_float[g['mark']])
         time.sleep(15)

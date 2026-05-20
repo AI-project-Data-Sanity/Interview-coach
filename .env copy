@@ -1,4 +1,11 @@
 TELEGRAM_BOT_TOKEN=your_token_here
-MISTRAL_KEY=your_mistral_key_here
 DB_PATH=path-to-your-database.db
+
+# LLM provider: mistral | gemini | openrouter
+LLM_PROVIDER=mistral
+LLM_MODEL=mistral-small-latest
+
+# Only the key for the active LLM_PROVIDER is required
+MISTRAL_KEY=your_mistral_key_here
 OPENROUTER_KEY=your_openrouter_key_here
+GEMINI_API_KEY=your_gemini_key_here

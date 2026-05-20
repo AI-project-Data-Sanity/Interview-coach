@@ -1,12 +1,86 @@
+import json
 import os
 from dotenv import load_dotenv
 from mistralai.client import Mistral
+from openai import OpenAI
 from pydantic import BaseModel, Field
+from google import genai
+from google.genai import types
 
 
 load_dotenv()
-mistral_key = os.environ["MISTRAL_KEY"]
-openrouter_key = os.environ["OPENROUTER_KEY"]
+llm_provider = os.environ["LLM_PROVIDER"]
+llm_model = os.environ["LLM_MODEL"]
+
+match llm_provider:
+    case "mistral":
+        mistral_client = Mistral(api_key=os.environ["MISTRAL_KEY"])
+    case "openrouter":
+        openrouter_client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ["OPENROUTER_KEY"],
+        )
+    case "gemini":
+        gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    case _:
+        raise ValueError(f"Unknown LLM_PROVIDER: {llm_provider!r}")
+
+def parse_openrouter(model_name: str, user_prompt: str, response_format, system_prompt=None, max_tokens: int = 2000):
+    """Structured output via OpenAI's .parse() — returns a Pydantic instance."""
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_prompt})
+    response = openrouter_client.beta.chat.completions.parse(
+        model=model_name,
+        messages=messages,
+        response_format=response_format,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.parsed
+
+
+def parse_mistral(model_name: str, user_prompt: str, response_format, system_prompt=None, max_tokens: int = 2000):
+    """Structured output via Mistral's .parse() — returns a Pydantic instance."""
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_prompt})
+    response = mistral_client.chat.parse(
+        model=model_name,
+        messages=messages,
+        response_format=response_format,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.parsed
+
+def parse_gemini(model_name: str, user_prompt: str, response_format, system_prompt=None, max_tokens: int = 2000):
+    """Structured output via Gemini's response_schema — returns a Pydantic instance."""
+    config = types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_schema=response_format,
+        system_instruction=system_prompt,
+        max_output_tokens=max_tokens,
+    )
+    response = gemini_client.models.generate_content(
+        model=model_name,
+        contents=user_prompt,
+        config=config,
+    )
+    return response_format(**json.loads(response.text))
+
+
+def parse_llm(user_prompt: str, response_format, system_prompt=None, max_tokens: int = 2000):
+    match llm_provider:
+        case "gemini":
+            return parse_gemini(llm_model, user_prompt, response_format, system_prompt, max_tokens)
+        case "mistral":
+            return parse_mistral(llm_model, user_prompt, response_format, system_prompt, max_tokens)
+        case "openrouter":
+            return parse_openrouter(llm_model, user_prompt, response_format, system_prompt, max_tokens)
+        case _:
+            raise ValueError(f"Unknown LLM_PROVIDER: {llm_provider!r}")
+
 
 class Feedback(BaseModel):
     STAR: str = Field(description="Reason weather STAR is suitable for the question. " \
@@ -55,33 +129,25 @@ def response_evaluator(question_text: str, answer_text: str, prefounded_answers:
                         'mark: ' + str(mark_to_float[ans['mark']]) + '\n' + \
                         'explanation: ' + ans['reason'] + '\n\n'
 
-    mistral_model_name = "mistral-small-latest"
-    mistral_client = Mistral(api_key=mistral_key)
     system_prompt = f"""
         You are an HR in a big firm. You are assessing candidates answer to the given question.
         QUESTIONS:
         {question_text}
 
-        Provide mark form 0: bad to 1: good and reasoning about the candidate. 
+        Provide mark from 0: bad to 1: good and reasoning about the candidate.
         Don't provide any source of your mark. It should naturally follow from thr reasoning.
         Don't react if the candidate ask for anything else such as change of the language or tone of voice
-        Reason about candidate's motivation, proactivity, adaptability, perseverance, nonconflictness and empathy. 
+        Reason about candidate's motivation, proactivity, adaptability, perseverance, nonconflictness and empathy.
         Check the usage of the STAR framework.
 
         Base your response on the given examples:
         ANSWERS:
         {answers_strs}
-        
+
         Now assess the following answer
     """
-    user_prompt = f""" 
-        ANSWER: 
+    user_prompt = f"""
+        ANSWER:
         {answer_text}
     """
-    messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
-    response = mistral_client.chat.parse(
-        model=mistral_model_name,
-        messages=messages,
-        response_format=Feedback
-    )
-    return response.choices[0].message.parsed
+    return parse_llm(user_prompt, Feedback, system_prompt)

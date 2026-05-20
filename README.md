@@ -1,5 +1,5 @@
 # Interview-coach
-Telegram bot to help you prepare for behavioral interviews. Upload your resume and get a personalized set of interview questions powered by Mistral AI.
+Telegram bot to help you prepare for behavioral interviews. Upload your resume and get a personalized set of interview questions powered by AI.
 
 ## Commands
 
@@ -17,19 +17,28 @@ Telegram bot to help you prepare for behavioral interviews. Upload your resume a
    pip3 install -r requirements.txt
    ```
 
-2. Create a `.env` file in the project root:
+2. Create a `.env` file in the project root (use `.env copy` as a template):
    ```
    TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+   DB_PATH=data/interview.db
+
+   # LLM provider: mistral | gemini | openrouter
+   LLM_PROVIDER=mistral
+   LLM_MODEL=mistral-small-latest
+
+   # Only the key for the active LLM_PROVIDER is required
    MISTRAL_KEY=your_mistral_api_key
-   DB_PATH=path_to_your_database.db
-   OPENROUTER_KEY=your_openrouter_key_here
+   OPENROUTER_KEY=your_openrouter_key
+   GEMINI_API_KEY=your_gemini_api_key
    ```
 
-   - Get a Telegram bot token from [@BotFather](https://t.me/BotFather)
-   - Get a Mistral API key from [console.mistral.ai](https://console.mistral.ai)
-   - Set `DB_PATH` to the desired location for the SQLite database (e.g., `data/interview.db`)
-   
-   See db_creation folder to fully reproduce the database building process or just use the provided `interview.db` file.
+   - Telegram token: [@BotFather](https://t.me/BotFather)
+   - Mistral key: [console.mistral.ai](https://console.mistral.ai)
+   - OpenRouter key: [openrouter.ai/keys](https://openrouter.ai/keys)
+   - Gemini key: [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+   - `DB_PATH`: path to the SQLite database (e.g., `data/interview.db`)
+
+3. Set up the database — use the provided `data/interview.db` or see [db_creation/](db_creation/) to rebuild from scratch.
 
 ## Run
 
@@ -38,3 +47,13 @@ python3 bot.py
 ```
 
 Stop the bot with `Ctrl+C`.
+
+## LLM providers
+
+The bot and evaluator support three providers, configured via `LLM_PROVIDER` and `LLM_MODEL` in `.env`:
+
+| Provider | Example model |
+|---|---|
+| `mistral` | `mistral-small-latest` |
+| `gemini` | `gemini-2.0-flash-lite` |
+| `openrouter` | `deepseek/deepseek-v4-flash:free` |
