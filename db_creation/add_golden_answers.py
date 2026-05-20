@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 import argparse
 import sqlite3
 import json
@@ -80,7 +79,7 @@ if __name__ == "__main__":
 
     conn = sqlite3.connect(db_path)
 
-    """CAREFUL: deletes golden set"""
+    """CAREFUL: deletes answers golden set"""
     ''' conn.execute("""delete from answers_golden;""") '''
     """ conn.commit() """
 

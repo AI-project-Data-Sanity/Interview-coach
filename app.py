@@ -1,6 +1,5 @@
 import os
 import re
-import numpy as np
 import argparse
 from dotenv import load_dotenv
 from pathlib import Path
@@ -19,8 +18,6 @@ load_dotenv()
 mistral_key = os.environ["MISTRAL_KEY"]
 
 def get_questions_from_llm(raw_resume: str, questions: list) -> list:
-    # TODO: add models diversity
-
     mistral_model_name = "mistral-small-latest"
     mistral_client = Mistral(api_key=mistral_key)
     system_prompt = f"""
@@ -73,7 +70,7 @@ def get_llm_feedback(user_id: int, question_id: int, answer:str) -> Union[str, N
     # log in the DB???
     return result
 
-def main() -> None:
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A simple parser for a simple script")
     parser.add_argument('--input-resume', help="path to the resume pdf file",
         default="val/Chuviliaeva_resume_linkedin_old.pdf"
@@ -93,6 +90,3 @@ def main() -> None:
         for q_id in question_ids:
             f.write("######question:" + get_question_text_by_id(q_id))
             f.write(get_llm_feedback(user_id=1234567, question_id=q_id, answer="I don't know"))
-
-if __name__ == "__main__":
-    main()

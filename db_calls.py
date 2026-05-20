@@ -93,7 +93,7 @@ def get_resume_db(user_id: int):
     conn.close()
     return res
 
-def get_golden_set(split = 'val'):
+def get_golden_answers(split = 'val'):
     conn = sqlite3.connect(db_path)
     cursor = conn.execute("""
         select golden_answer, question_id, mark, split from answers_golden
@@ -108,6 +108,22 @@ def get_golden_set(split = 'val'):
     } for row in cursor.fetchall()]
     conn.close()
     return res
+
+def get_golden_resumes(split = 'val'):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute("""
+        select resume_id, filename, is_it_resume, questions_plan from resumes_golden
+        where split = ?
+        """,(split,)
+    )
+    res = [{
+        "filename": row[1],
+        "is_it_resume": row[2],
+        "questions_plan": row[3],
+    } for row in cursor.fetchall()]
+    conn.close()
+    return res
+
 
 if __name__ == '__main__':
     pass

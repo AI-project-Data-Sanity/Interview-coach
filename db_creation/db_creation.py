@@ -15,7 +15,7 @@ def drop_tables(conn: sqlite3.Connection):
     conn.execute("""drop table if exists answers""")
     conn.execute("""drop table if exists users""")
     conn.execute("""drop table if exists answers_golden""")
-    conn.execute("""drop table if exists resume_golden""")
+    conn.execute("""drop table if exists resumes_golden""")
     conn.commit()
 
 
@@ -54,17 +54,18 @@ def create_tables(conn: sqlite3.Connection):
         golden_answer TEXT NOT NULL,
         question_id INTEGER NOT NULL,
         mark TEXT CHECK(mark IN ('bad', 'good')),
-        split TEXT CHECK(split IN ('test', 'val', 'no')),
+        split TEXT CHECK(split IN ('test', 'val')),
         FOREIGN KEY (question_id) REFERENCES questions(question_id)
     )
     """)
 
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS resume_golden (
+        CREATE TABLE IF NOT EXISTS resumes_golden (
         resume_id INTEGER PRIMARY KEY,
         filename TEXT NOT NULL,
-        is_resume BOOLEAN NOT NULL,
-        is_it_resume BOOLEAN NOT NULL
+        is_it_resume BOOLEAN NOT NULL,
+        split TEXT CHECK(split IN ('test', 'val')),
+        questions_plan TEXT
     )
     """)
     conn.commit()
