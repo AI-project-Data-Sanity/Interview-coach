@@ -1,11 +1,11 @@
 import os
-import argparse
 import sqlite3
 import json
 from dotenv import load_dotenv
 
 load_dotenv()
 db_path = os.path.join('..', os.environ["DB_PATH"])
+golden_resumes_path = os.environ['GOLDEN_RESUMES_PATH']
 
 def add_golden_resume(
         conn: sqlite3.Connection, filename: str, is_it_resume: bool, split: str, questions_plan: str
@@ -23,20 +23,14 @@ if __name__ == "__main__":
     Script to add golden resumes with interview plans to the database. 
     Uses plans predifined and refined by Opus 
     """
-    parser = argparse.ArgumentParser(
-        description="A parser to get all incoming files from search and the json with plans predictions produced by Opus")
-    parser.add_argument("--golden-resumes-path",
-        help="path to the directory with val/test folders with the resumes and structured jsons from Opus",
-        default='../data/golden_resumes'
-    )
-    args = parser.parse_args()
+
     conn = sqlite3.connect(db_path)
     """CAREFUL: deletes resumes golden set"""
-    'conn.execute("""delete from resumes_golden;""")'
+    '''conn.execute("""delete from resumes_golden;""")'''
     """conn.commit()"""
 
     for folder in ['val', 'test']:
-        folder_path = os.path.join(args.golden_resumes_path, folder)
+        folder_path = os.path.join(golden_resumes_path, folder)
         json_path = os.path.join(folder_path, 'interview_plans.json')
         with open(json_path, 'r') as f:
             plans = json.load(f)

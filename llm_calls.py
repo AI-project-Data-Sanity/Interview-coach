@@ -11,21 +11,29 @@ from google import genai
 from google.genai import types
 
 load_dotenv()
-llm_provider = os.environ["LLM_PROVIDER"]
-llm_model = os.environ["LLM_MODEL"]
+llm_assessment_provider = os.environ["LLM_ASSESSMENT_PROVIDER"]
+llm_assessment_model = os.environ["LLM_ASSESSMENT_MODEL"]
 
-match llm_provider:
-    case "mistral":
-        mistral_client = Mistral(api_key=os.environ["MISTRAL_KEY"])
-    case "openrouter":
-        openrouter_client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.environ["OPENROUTER_KEY"],
-        )
-    case "gemini":
-        gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    case _:
-        raise ValueError(f"Unknown LLM_PROVIDER: {llm_provider!r}")
+llm_plan_builder_provider = os.environ["LLM_PLAN_BUILDER_PROVIDER"]
+llm_plan_builder_model = os.environ["LLM_PLAN_BUILDER_MODEL"]
+
+llm_preparser_provider = os.environ["LLM_PREPARSER_PROVIDER"]
+llm_parser_provider = os.environ["LLM_PARSER_PROVIDER"]
+
+providers = [llm_assessment_provider, llm_plan_builder_provider, llm_preparser_provider, llm_parser_provider]
+for provider in providers:
+    match provider:
+        case "mistral":
+            mistral_client = Mistral(api_key=os.environ["MISTRAL_KEY"])
+        case "openrouter":
+            openrouter_client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=os.environ["OPENROUTER_KEY"],
+            )
+        case "gemini":
+            gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        case _:
+            raise ValueError(f"Unknown LLM_PROVIDER: {provider!r}")
 
 def parse_openrouter(model_name: str, user_prompt: str, response_format, system_prompt=None, max_tokens: int = 2000):
     """Structured output via OpenAI's .parse() — returns a Pydantic instance."""
@@ -52,7 +60,7 @@ def parse_mistral(model_name: str, user_prompt: str, response_format, system_pro
         model=model_name,
         messages=messages,
         response_format=response_format,
-        max_tokens=max_tokens,
+        # max_tokens=max_tokens,
     )
     return response.choices[0].message.parsed
 
@@ -62,7 +70,7 @@ def parse_gemini(model_name: str, user_prompt: str, response_format, system_prom
         response_mime_type="application/json",
         response_schema=response_format,
         system_instruction=system_prompt,
-        max_output_tokens=max_tokens,
+        # max_output_tokens=max_tokens,
     )
     response = gemini_client.models.generate_content(
         model=model_name,
@@ -72,13 +80,16 @@ def parse_gemini(model_name: str, user_prompt: str, response_format, system_prom
     return response_format(**json.loads(response.text))
 
 
-def parse_llm(user_prompt: str, response_format, system_prompt=None, max_tokens: int = 2000):
+def parse_llm(llm_provider, llm_model, user_prompt: str, response_format, system_prompt=None, max_tokens: int = 2000):
+    print('in parse_llm, provider = ', provider)
     match llm_provider:
         case "gemini":
             return parse_gemini(llm_model, user_prompt, response_format, system_prompt, max_tokens)
         case "mistral":
             return parse_mistral(llm_model, user_prompt, response_format, system_prompt, max_tokens)
         case "openrouter":
+            print('llm_provider = ', llm_provider)
+            print('openrouter_client = ', openrouter_client)
             return parse_openrouter(llm_model, user_prompt, response_format, system_prompt, max_tokens)
         case _:
             raise ValueError(f"Unknown LLM_PROVIDER: {llm_provider!r}")
@@ -152,7 +163,7 @@ def response_evaluator(question_text: str, answer_text: str, prefounded_answers:
         ANSWER:
         {answer_text}
     """
-    return parse_llm(user_prompt, Feedback, system_prompt)
+    return parse_llm(llm_assessment_provider, llm_assessment_model, user_prompt, Feedback, system_prompt)
 
 class ResumePlan(BaseModel):
     plan: List[int] = Field(description='List of 5 questions in appropriate order to ask based on the resume')
@@ -170,4 +181,4 @@ def question_list_builder(raw_resume: str, questions: list, user_answered= []) -
         RESUME: 
         {raw_resume}
         """
-    return parse_llm(user_prompt, ResumePlan, system_prompt).plan
+    return parse_llm(llm_plan_builder_provider, llm_plan_builder_model, user_prompt, ResumePlan, system_prompt).plan

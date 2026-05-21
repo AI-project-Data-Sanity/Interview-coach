@@ -2,9 +2,24 @@ TELEGRAM_BOT_TOKEN=your_token_here
 DB_PATH=path-to-your-database.db
 GOLDEN_RESUMES_PATH=path-to-golden-resumes-folder-only-for-evaluation
 
-# LLM provider: mistral | gemini | openrouter
-LLM_PROVIDER=mistral
-LLM_MODEL=mistral-small-latest
+# choose LLM providers from: mistral | gemini | openrouter
+# different tasks may use different providers and models
+
+# Task: assess the users answers
+LLM_ASSESSMENT_PROVIDER=mistral
+LLM_ASSESSMENT_MODEL=mistral-small-latest
+
+# Task: build an interview plan from given questions
+LLM_PLAN_BUILDER_PROVIDER=gemini
+LLM_PLAN_BUILDER_MODEL=gemini-2.0-flash-lite
+
+# Task: check that the user send a resume
+LLM_PREPARSER_PROVIDER=mistral
+LLM_PREPARSER_MODEL=mistral-small-latest
+
+# Task: extract the text from a resume
+LLM_PARSER_PROVIDER=openrouter
+LLM_PARSER_MODEL=nvidia/nemotron-3-super-120b-a12b:free
 
 # Only the key for the active LLM_PROVIDER is required
 MISTRAL_KEY=your_mistral_key_here

@@ -1,14 +1,10 @@
 import os
-import re
-import argparse
 from dotenv import load_dotenv
 from pathlib import Path
 from typing import Union
 
-from mistralai.client import Mistral
-
 from llm_calls import response_evaluator, question_list_builder
-from resume_parser import parse_resume_pdf
+from llm_resume_parser import parse_resume_pdf
 from db_calls import (
     add_user, save_resume_db, get_resume_db,
     get_all_questions, get_question_by_id, get_answers_by_question_id, save_user_answered,
@@ -55,22 +51,4 @@ def get_llm_feedback(user_id: int, question_id: int, answer:str) -> Union[str, N
     return result
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="A simple parser for a simple script")
-    parser.add_argument('--input-resume', help="path to the resume pdf file",
-        default="val/Chuviliaeva_resume_linkedin_old.pdf"
-    )
-    parser.add_argument('--db-path', help="path to the file with db",
-        default="val/interview.db"
-    )
-    parser.add_argument('--output', help="path to the output .txt file",
-        default="val/output2.txt"
-    )
-    args = parser.parse_args()
-
-    register_user(user_id=1234567, username='@mira_bl')
-    save_resume(user_id=1234567, pdf_path=args.input_resume)
-    question_ids = get_question_list(user_id=1234567)
-    with open(args.output, 'w+') as f:
-        for q_id in question_ids:
-            f.write("######question:" + get_question_text_by_id(q_id))
-            f.write(get_llm_feedback(user_id=1234567, question_id=q_id, answer="I don't know"))
+    pass
