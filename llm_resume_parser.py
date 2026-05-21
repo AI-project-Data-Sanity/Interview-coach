@@ -106,7 +106,7 @@ def parse_resume_pdf(pdf_path: Union[str, Path]) -> str:
         {raw_text}
     """
 
-    cleared_text = parse_llm(llm_parser_provider, llm_parser_model, user_prompt, Resume, system_prompt, max_tokens=8000).cleared_text
+    cleared_text = parse_llm(llm_parser_provider, llm_parser_model, user_prompt, Resume, system_prompt).cleared_text
     logger.debug("parse_resume_pdf | cleared_text_len=%d", len(cleared_text))
     return cleared_text
 
