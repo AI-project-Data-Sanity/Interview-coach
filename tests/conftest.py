@@ -2,6 +2,15 @@
 Set env vars before any project module is imported, so module-level
 `os.environ[...]` reads in llm_calls.py, db_calls.py, etc. all succeed.
 """
+import sys
+from unittest.mock import MagicMock
+
+# pymupdf's SWIG C-extension types emit DeprecationWarnings on import that
+# cannot be fixed without patching the library. Since all tests that touch
+# resume_parser already mock pymupdf.open, we stub the whole package here so
+# it is never actually imported during the test run.
+sys.modules.setdefault("pymupdf", MagicMock())
+
 import os
 import sqlite3
 import pytest
