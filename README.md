@@ -57,3 +57,14 @@ The bot and evaluator support three providers, configured via `LLM_PROVIDER` and
 | `mistral` | `mistral-small-latest` |
 | `gemini` | `gemini-2.0-flash-lite` |
 | `openrouter` | `deepseek/deepseek-v4-flash:free` |
+
+## Tests
+
+No API keys or running database are required — all external dependencies are mocked.
+
+```bash
+pip3 install pytest pytest-mock
+pytest tests/ -v
+```
+
+The suite covers `db_calls`, `llm_calls`, `resume_parser`, and `app`.
