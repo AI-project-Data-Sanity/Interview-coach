@@ -1,6 +1,8 @@
 # Interview-coach
 Telegram bot to help you prepare for behavioral interviews. Upload your resume and get a personalized set of interview questions powered by AI.
 
+**[@job_it_interview_coach_bot](https://t.me/job_it_interview_coach_bot)**
+
 ## Commands
 
 | Command | Description |
