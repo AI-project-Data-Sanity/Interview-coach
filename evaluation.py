@@ -57,6 +57,7 @@ def plan_builder_evaluator(golden_resumes_path: str, split :str = 'val'):
 
     golden_set = get_golden_resumes(split)
     questions = get_all_questions()
+    parsed_text = ''
     for g in tqdm(golden_set):
         golden_plan = g['questions_plan']
         done = False
@@ -78,7 +79,7 @@ def plan_builder_evaluator(golden_resumes_path: str, split :str = 'val'):
                 else:
                     if attempt == 2:
                         raise
-                    time.sleep(5 * (attempt + 1))
+                    time.sleep(10 * (attempt + 1))
 
         if not done:
             for attempt in range(3):
@@ -89,7 +90,7 @@ def plan_builder_evaluator(golden_resumes_path: str, split :str = 'val'):
                     print('Plan builder exception', e)
                     if attempt == 2:
                         raise
-                    time.sleep(5 * (attempt + 1))
+                    time.sleep(10 * (attempt + 1))
 
             ious.append(
                 len(np.intersect1d(plan, golden_plan, assume_unique=True)) / len(np.union1d(plan, golden_plan))
@@ -117,4 +118,4 @@ if __name__ == "__main__":
     Script to evaluate the quality of the whole system
     """
     plan_builder_evaluator(golden_resumes_path, 'val')
-    mark_evaluator(split = 'val')
+    # mark_evaluator(split = 'val')

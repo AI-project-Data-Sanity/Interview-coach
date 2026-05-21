@@ -3,8 +3,6 @@ import logging
 import os
 from dotenv import load_dotenv
 
-logger = logging.getLogger(__name__)
-
 from typing import List
 from pydantic import BaseModel, Field
 
@@ -12,6 +10,8 @@ from mistralai.client import Mistral
 from openai import OpenAI
 from google import genai
 from google.genai import types
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 llm_assessment_provider = os.environ["LLM_ASSESSMENT_PROVIDER"]
@@ -48,7 +48,7 @@ def parse_openrouter(model_name: str, user_prompt: str, response_format, system_
         model=model_name,
         messages=messages,
         response_format=response_format,
-        max_tokens=max_tokens,
+        # max_tokens=max_tokens,
     )
     return response.choices[0].message.parsed
 
@@ -171,12 +171,23 @@ def response_evaluator(question_text: str, answer_text: str, prefounded_answers:
     return parse_llm(llm_assessment_provider, llm_assessment_model, user_prompt, Feedback, system_prompt)
 
 class ResumePlan(BaseModel):
-    plan: List[int] = Field(description='List of 5 questions in appropriate order to ask based on the resume')
+    question_impact: int = Field(description='Question id that checks for impact and achievements')
+    question_collaboration: int = Field(description='Question id that checks for collaboration and nonconflictness')
+    question_ownership: int = Field(description='Question id that checks for ownership and ability to take the initiative')
+    question_selfawareness: int = Field(description='Question id that checks for self-awerness')
+    question_problem_solving: int = Field(description='Question id that checks for problem solving capabilities')
+    plan: List[int] = Field(description='List all 5 questions chosen previously')
 
 def question_list_builder(raw_resume: str, questions: list, user_answered= []) -> list:
     system_prompt = f"""
         You are an HR in a big firm. Make a structured plan of behavioral interview from the given resume text.
-        Ask 5 questions from the list provided. Return just the questions ids.
+        Ask exactly 5 questions from the list provided. Return just the questions ids. 
+        Chosen questions should check for 
+        1 Impact and Achievements
+        2 Ability to collaboration and behavior in conflicts
+        3 Ownership and ability to take the initiative
+        4 Self-awerness
+        5 Problem solving capbilities
         QUESTIONS:
         {questions}
         

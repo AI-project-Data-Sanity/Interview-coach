@@ -103,7 +103,7 @@ def get_user_answered(user_id: int):
     conn.close()
     return asked_questions
 
-def save_user_answered(user_id: int, question_id: int, ):
+def save_user_answered(user_id: int, question_id: int):
     asked_questions = get_user_answered(user_id)
     asked_questions.append(question_id)
     asked_questions = list(set(asked_questions))

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from mistralai.client import Mistral
 from openai import OpenAI
 from google import genai
+from google.genai import types
 
 from llm_calls import parse_llm
 
@@ -25,7 +26,6 @@ llm_parser_model = os.environ["LLM_PARSER_MODEL"]
 
 providers = [llm_preparser_provider, llm_parser_provider]
 for provider in providers:
-    print('before parser, provider = ', provider)
     match provider:
         case "mistral":
             mistral_client = Mistral(api_key=os.environ["MISTRAL_KEY"])
@@ -95,11 +95,10 @@ def parse_resume_pdf(pdf_path: Union[str, Path]) -> str:
     if not check_resume(raw_text):
         raise Exception("Not an IT resume.")
 
-    time.sleep(5)
+    time.sleep(10)
     system_prompt = f"""
         You are an attentive editor. Extract as much information as you can from the raw resume text.
         Remove common contact information. Take just text from headers and tables. 
-        Keep everything that could be relevant to describe a person as a specialist in IT field, including skills, experience, education, projects and so on.
         Return just the clered text as a JSON field.
     """
     user_prompt = f"""
