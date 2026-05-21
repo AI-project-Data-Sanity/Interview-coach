@@ -10,4 +10,5 @@ langchain>=1.2.13
 langchain-core>=1.2.22
 langchain-mistralai>=1.1.2
 python-telegram-bot>=20.0
-google-genai==1.68.0
+google-genai>=1.68.0
+langchain-google-genai>=4.2.1

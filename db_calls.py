@@ -63,7 +63,7 @@ def add_user(user_id: int, username: str):
             """
             insert into users (user_id, user_name, resume_text, asked_questions, dialog_text) values (?, ?, ?, ?, ?)
             """,
-            (user_id, username, '', '', '')
+            (user_id, username, '', json.dumps([]), '')
         )
     else:
         if res[0][1] != username:
@@ -92,6 +92,28 @@ def get_resume_db(user_id: int):
     res = cursor.fetchall()[0]
     conn.close()
     return res
+
+def get_user_answered(user_id: int):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute("""
+        select asked_questions from users where user_id = ?""",
+        (user_id,)
+    )
+    asked_questions = json.loads(cursor.fetchall()[0][0])
+    conn.close()
+    return asked_questions
+
+def save_user_answered(user_id: int, question_id: int, ):
+    asked_questions = get_user_answered(user_id)
+    asked_questions.append(question_id)
+    asked_questions = list(set(asked_questions))
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """update users set asked_questions = ? where user_id = ?""",
+        (json.dumps(asked_questions), user_id)
+    )
+    conn.commit()
+    conn.close()
 
 def get_golden_answers(split = 'val'):
     conn = sqlite3.connect(db_path)

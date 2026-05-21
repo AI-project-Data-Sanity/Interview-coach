@@ -1,12 +1,18 @@
 import os
 import re
-import requests
 from pathlib import Path
 from typing import Union
 import pymupdf
-from mistralai.client import Mistral
-
 from dotenv import load_dotenv
+
+from pydantic import BaseModel, Field
+
+from mistralai.client import Mistral
+from openai import OpenAI
+from google import genai
+from google.genai import types
+
+from llm_calls import parse_llm
 
 _NOISE_PATTERNS = [
     r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b",  # dates like 12/05/2024
@@ -18,11 +24,28 @@ _NOISE_PATTERNS = [
 ]
 
 load_dotenv()
-mistral_key = os.environ["MISTRAL_KEY"]
+llm_provider = os.environ["LLM_PROVIDER"]
+llm_model = os.environ["LLM_MODEL"]
+
+match llm_provider:
+    case "mistral":
+        mistral_client = Mistral(api_key=os.environ["MISTRAL_KEY"])
+    case "openrouter":
+        openrouter_client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ["OPENROUTER_KEY"],
+        )
+    case "gemini":
+        gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    case _:
+        raise ValueError(f"Unknown LLM_PROVIDER: {llm_provider!r}")
+
+class ResumeChecker(BaseModel):
+    is_it_resume: bool = Field(
+        description="True if the text represents an IT resume suitable for behavioral interview, 0 otherwise"
+    )
 
 def check_resume(raw_text: str):
-    mistral_model_name = "mistral-small-latest"
-    mistral_client = Mistral(api_key=mistral_key)
     system_prompt = f"""
         You are a concise resume classifier. 
         Given the following resume text, answer whether it is an IT resume, that suitable for a behavioral interview.
@@ -33,11 +56,7 @@ def check_resume(raw_text: str):
         RESUME TEXT: 
         {raw_text}
         """
-
-    messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
-    response = mistral_client.chat.complete(model=mistral_model_name, messages=messages)
-    is_resume = int(response.choices[0].message.content)
-    return is_resume
+    return parse_llm(user_prompt, ResumeChecker, system_prompt).is_it_resume
 
 
 def parse_resume_pdf(pdf_path: Union[str, Path]) -> str:

@@ -1,5 +1,6 @@
 TELEGRAM_BOT_TOKEN=your_token_here
 DB_PATH=path-to-your-database.db
+GOLDEN_RESUMES_PATH=path-to-golden-resumes-folder-only-for-evaluation
 
 # LLM provider: mistral | gemini | openrouter
 LLM_PROVIDER=mistral

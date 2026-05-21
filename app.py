@@ -7,33 +7,16 @@ from typing import Union
 
 from mistralai.client import Mistral
 
-from llm_calls import response_evaluator
+from llm_calls import response_evaluator, question_list_builder
 from resume_parser import parse_resume_pdf
 from db_calls import (
     add_user, save_resume_db, get_resume_db,
-    get_all_questions, get_question_by_id, get_answers_by_question_id
+    get_all_questions, get_question_by_id, get_answers_by_question_id, save_user_answered,
+    save_user_answered, get_user_answered
 )
 
 load_dotenv()
 mistral_key = os.environ["MISTRAL_KEY"]
-
-def get_questions_from_llm(raw_resume: str, questions: list) -> list:
-    mistral_model_name = "mistral-small-latest"
-    mistral_client = Mistral(api_key=mistral_key)
-    system_prompt = f"""
-        You are an HR in a big firm. Make a structured plan of behavioral interview from the given resume text.
-        Ask 3-5 questions from the list. Return just the questions ids.
-        QUESTIONS:
-        {questions}
-        """
-    user_prompt = f""" 
-        RESUME: 
-        {raw_resume}
-    """
-    messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
-    response = mistral_client.chat.complete(model=mistral_model_name, messages=messages)
-    chosen_ids = [int(raw_id) for raw_id in re.findall(r'[1-9]+', response.choices[0].message.content)]
-    return chosen_ids
 
 def register_user(user_id: int, username: str):
     add_user(user_id, username)
@@ -43,15 +26,16 @@ def save_resume(user_id: int, pdf_path: Union[str, Path]):
     save_resume_db(user_id, parsed_text)
 
 def get_question_list(user_id: int) -> Union[list, None]:
+    user_answered = get_user_answered(user_id)
     parsed_text = get_resume_db(user_id)
     questions = get_all_questions()
-    question_ids = get_questions_from_llm(parsed_text, questions)
-    return question_ids
+    return question_list_builder(parsed_text, questions, user_answered)
 
 def get_question_text_by_id(question_id: int)->str:
     return get_question_by_id(question_id)
 
 def get_llm_feedback(user_id: int, question_id: int, answer:str) -> Union[str, None]:
+    save_user_answered(user_id, question_id)
     question_text = get_question_by_id(question_id)
     prefounded_answers = get_answers_by_question_id(question_id)
     assessment = response_evaluator(question_text, answer, prefounded_answers)

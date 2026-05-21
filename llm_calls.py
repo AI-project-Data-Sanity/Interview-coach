@@ -1,12 +1,14 @@
 import json
 import os
 from dotenv import load_dotenv
+
+from typing import List
+from pydantic import BaseModel, Field
+
 from mistralai.client import Mistral
 from openai import OpenAI
-from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
-
 
 load_dotenv()
 llm_provider = os.environ["LLM_PROVIDER"]
@@ -151,3 +153,21 @@ def response_evaluator(question_text: str, answer_text: str, prefounded_answers:
         {answer_text}
     """
     return parse_llm(user_prompt, Feedback, system_prompt)
+
+class ResumePlan(BaseModel):
+    plan: List[int] = Field(description='List of 5 questions in appropriate order to ask based on the resume')
+
+def question_list_builder(raw_resume: str, questions: list, user_answered= []) -> list:
+    system_prompt = f"""
+        You are an HR in a big firm. Make a structured plan of behavioral interview from the given resume text.
+        Ask 5 questions from the list provided. Return just the questions ids.
+        QUESTIONS:
+        {questions}
+        
+        Try NOT to include already asked questions: {user_answered}
+        """
+    user_prompt = f""" 
+        RESUME: 
+        {raw_resume}
+        """
+    return parse_llm(user_prompt, ResumePlan, system_prompt).plan
