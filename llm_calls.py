@@ -1,6 +1,9 @@
 import json
+import logging
 import os
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 from typing import List
 from pydantic import BaseModel, Field
@@ -81,15 +84,20 @@ def parse_gemini(model_name: str, user_prompt: str, response_format, system_prom
 
 
 def parse_llm(llm_provider, llm_model, user_prompt: str, response_format, system_prompt=None, max_tokens: int = 2000):
+    logger.info("LLM call | provider=%s model=%s format=%s", llm_provider, llm_model, response_format.__name__)
+    logger.debug("  system_prompt: %s", system_prompt)
+    logger.debug("  user_prompt: %s", user_prompt)
     match llm_provider:
         case "gemini":
-            return parse_gemini(llm_model, user_prompt, response_format, system_prompt, max_tokens)
+            result = parse_gemini(llm_model, user_prompt, response_format, system_prompt, max_tokens)
         case "mistral":
-            return parse_mistral(llm_model, user_prompt, response_format, system_prompt, max_tokens)
+            result = parse_mistral(llm_model, user_prompt, response_format, system_prompt, max_tokens)
         case "openrouter":
-            return parse_openrouter(llm_model, user_prompt, response_format, system_prompt, max_tokens)
+            result = parse_openrouter(llm_model, user_prompt, response_format, system_prompt, max_tokens)
         case _:
             raise ValueError(f"Unknown LLM_PROVIDER: {llm_provider!r}")
+    logger.debug("  result: %s", result)
+    return result
 
 
 class Feedback(BaseModel):

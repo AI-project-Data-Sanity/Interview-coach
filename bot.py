@@ -1,6 +1,12 @@
+import logging
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+)
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
