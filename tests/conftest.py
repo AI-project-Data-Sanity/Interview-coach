@@ -16,8 +16,14 @@ import sqlite3
 import pytest
 
 # Must be set before any project module is imported.
-os.environ.setdefault("LLM_PROVIDER", "mistral")
-os.environ.setdefault("LLM_MODEL", "mistral-small")
+os.environ.setdefault("LLM_ASSESSMENT_PROVIDER", "mistral")
+os.environ.setdefault("LLM_ASSESSMENT_MODEL", "mistral-small-latest")
+os.environ.setdefault("LLM_PLAN_BUILDER_PROVIDER", "gemini")
+os.environ.setdefault("LLM_PLAN_BUILDER_MODEL", "gemini-2.0-flash-lite")
+os.environ.setdefault("LLM_PREPARSER_PROVIDER", "mistral")
+os.environ.setdefault("LLM_PREPARSER_MODEL", "mistral-small-latest")
+os.environ.setdefault("LLM_PARSER_PROVIDER", "openrouter")
+os.environ.setdefault("LLM_PARSER_MODEL", "nvidia/nemotron-3-super-120b-a12b:free")
 os.environ.setdefault("MISTRAL_KEY", "test-key")
 os.environ.setdefault("OPENROUTER_KEY", "test-key")
 os.environ.setdefault("GEMINI_API_KEY", "test-key")

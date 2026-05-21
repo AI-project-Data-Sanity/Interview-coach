@@ -1,53 +1,39 @@
-import re
 import pytest
 from unittest.mock import patch, MagicMock
 
-from resume_parser import _NOISE_PATTERNS
+import llm_resume_parser
+from llm_resume_parser import check_resume, parse_resume_pdf, ResumeChecker, Resume
 
 
-# --- Noise pattern tests (pure regex, no I/O) ---
+class TestCheckResume:
+    def _capture(self, text="some resume text"):
+        mock_result = ResumeChecker(is_it_resume=True)
+        with patch("llm_resume_parser.parse_llm", return_value=mock_result) as mock:
+            result = check_resume(text)
+            return result, mock.call_args
 
-def _matches_any(text: str) -> bool:
-    return any(re.search(p, text, flags=re.IGNORECASE) for p in _NOISE_PATTERNS)
+    def test_returns_true_for_it_resume(self):
+        result, _ = self._capture()
+        assert result is True
 
+    def test_returns_false_for_non_it_resume(self):
+        mock_result = ResumeChecker(is_it_resume=False)
+        with patch("llm_resume_parser.parse_llm", return_value=mock_result):
+            result = check_resume("Annual financial report Q3 2024")
+        assert result is False
 
-class TestNoisePatterns:
-    def test_email_is_noise(self):
-        assert _matches_any("john.doe@example.com")
+    def test_raw_text_in_user_prompt(self):
+        _, call_args = self._capture(text="UniqueResumeTextXYZ")
+        user_prompt = call_args.args[2]
+        assert "UniqueResumeTextXYZ" in user_prompt
 
-    def test_phone_is_noise(self):
-        assert _matches_any("+1 (555) 123-4567")
+    def test_response_format_is_resume_checker(self):
+        _, call_args = self._capture()
+        assert call_args.args[3] is ResumeChecker
 
-    def test_url_is_noise(self):
-        assert _matches_any("https://github.com/johndoe")
-
-    def test_www_url_is_noise(self):
-        assert _matches_any("www.linkedin.com/in/johndoe")
-
-    def test_linkedin_is_noise(self):
-        assert _matches_any("linkedin.com/in/johndoe")
-
-    def test_github_is_noise(self):
-        assert _matches_any("github.com/johndoe/repo")
-
-    def test_date_is_noise(self):
-        assert _matches_any("12/05/2024")
-
-    def test_regular_sentence_is_not_noise(self):
-        assert not _matches_any("Developed a distributed caching layer in Python")
-
-    def test_company_name_is_not_noise(self):
-        assert not _matches_any("Google Inc.")
-
-    def test_skill_list_is_not_noise(self):
-        assert not _matches_any("Python, Java, Go, Kubernetes")
-
-
-# --- parse_resume_pdf integration (PDF reading + LLM mocked) ---
 
 class TestParseResumePdf:
     def _make_mock_doc(self, pages_text: list[str]):
-        """Build a minimal pymupdf.Document mock."""
         mock_doc = MagicMock()
         mock_doc.__len__.return_value = len(pages_text)
         mock_doc.__iter__.return_value = iter([
@@ -56,67 +42,69 @@ class TestParseResumePdf:
         return mock_doc
 
     def test_too_many_pages_raises(self):
-        with patch("resume_parser.pymupdf.open") as mock_open:
-            mock_doc = MagicMock()
-            mock_doc.__len__.return_value = 11
-            mock_open.return_value = mock_doc
+        mock_doc = MagicMock()
+        mock_doc.__len__.return_value = 11
+        with patch("llm_resume_parser.pymupdf.open", return_value=mock_doc):
             with pytest.raises(Exception, match="Too long"):
-                from resume_parser import parse_resume_pdf
                 parse_resume_pdf("fake.pdf")
 
     def test_non_resume_raises(self):
-        with patch("resume_parser.pymupdf.open") as mock_open, \
-             patch("resume_parser.check_resume", return_value=False):
-            mock_doc = self._make_mock_doc(["Some random text document"])
-            mock_open.return_value = mock_doc
-            from resume_parser import parse_resume_pdf
+        mock_doc = self._make_mock_doc(["Some random text"])
+        with patch("llm_resume_parser.pymupdf.open", return_value=mock_doc), \
+             patch("llm_resume_parser.check_resume", return_value=False):
             with pytest.raises(Exception, match="Not an IT resume"):
                 parse_resume_pdf("fake.pdf")
 
-    def test_valid_resume_returns_string(self):
-        resume_text = (
-            "Software Engineer\n"
-            "Skills: Python, Docker, Kubernetes\n"
-            "Experience: 5 years at BigCorp building distributed systems\n"
-            "Education: BSc Computer Science\n"
-        )
-        with patch("resume_parser.pymupdf.open") as mock_open, \
-             patch("resume_parser.check_resume", return_value=True):
-            mock_doc = self._make_mock_doc([resume_text])
-            mock_open.return_value = mock_doc
-            from resume_parser import parse_resume_pdf
+    def test_returns_cleared_text(self):
+        mock_doc = self._make_mock_doc(["Raw resume content"])
+        mock_resume = Resume(cleared_text="Cleaned and structured resume")
+        with patch("llm_resume_parser.pymupdf.open", return_value=mock_doc), \
+             patch("llm_resume_parser.check_resume", return_value=True), \
+             patch("llm_resume_parser.parse_llm", return_value=mock_resume), \
+             patch("llm_resume_parser.time.sleep"):
             result = parse_resume_pdf("fake.pdf")
-            assert isinstance(result, str)
-            assert len(result) > 0
+        assert result == "Cleaned and structured resume"
 
-    def test_noise_removed_from_output(self):
-        resume_text = (
-            "John Doe\n"
-            "john@example.com\n"
-            "+1-555-000-0000\n"
-            "Skills: Python, Docker, Kubernetes\n"
-            "Experience: Built microservices at a fintech company for 3 years\n"
-            "Education: BSc Computer Science, MIT\n"
-        )
-        with patch("resume_parser.pymupdf.open") as mock_open, \
-             patch("resume_parser.check_resume", return_value=True):
-            mock_doc = self._make_mock_doc([resume_text])
-            mock_open.return_value = mock_doc
-            from resume_parser import parse_resume_pdf
-            result = parse_resume_pdf("fake.pdf")
-            assert "john@example.com" not in result
-            assert "+1-555-000-0000" not in result
+    def test_raw_text_passed_to_check_resume(self):
+        mock_doc = self._make_mock_doc(["UniqueCheckTextDEF456"])
+        mock_resume = Resume(cleared_text="cleaned")
+        with patch("llm_resume_parser.pymupdf.open", return_value=mock_doc), \
+             patch("llm_resume_parser.check_resume", return_value=True) as mock_check, \
+             patch("llm_resume_parser.parse_llm", return_value=mock_resume), \
+             patch("llm_resume_parser.time.sleep"):
+            parse_resume_pdf("fake.pdf")
+        assert "UniqueCheckTextDEF456" in mock_check.call_args.args[0]
 
-    def test_skills_section_preserved(self):
-        resume_text = (
-            "Skills: Python, Docker, Kubernetes, PostgreSQL\n"
-            "Experience: Led backend team of 5 engineers building a payment platform\n"
-            "Education: MSc Software Engineering\n"
-        )
-        with patch("resume_parser.pymupdf.open") as mock_open, \
-             patch("resume_parser.check_resume", return_value=True):
-            mock_doc = self._make_mock_doc([resume_text])
-            mock_open.return_value = mock_doc
-            from resume_parser import parse_resume_pdf
-            result = parse_resume_pdf("fake.pdf")
-            assert "Python" in result
+    def test_multipage_text_joined_with_newline(self):
+        mock_doc = self._make_mock_doc(["Page one text", "Page two text"])
+        mock_resume = Resume(cleared_text="cleaned")
+        with patch("llm_resume_parser.pymupdf.open", return_value=mock_doc), \
+             patch("llm_resume_parser.check_resume", return_value=True) as mock_check, \
+             patch("llm_resume_parser.parse_llm", return_value=mock_resume), \
+             patch("llm_resume_parser.time.sleep"):
+            parse_resume_pdf("fake.pdf")
+        passed_text = mock_check.call_args.args[0]
+        assert "Page one text" in passed_text
+        assert "Page two text" in passed_text
+        assert "\n" in passed_text
+
+    def test_raw_text_in_extraction_prompt(self):
+        mock_doc = self._make_mock_doc(["UniqueRawTextABC123"])
+        mock_resume = Resume(cleared_text="cleaned")
+        with patch("llm_resume_parser.pymupdf.open", return_value=mock_doc), \
+             patch("llm_resume_parser.check_resume", return_value=True), \
+             patch("llm_resume_parser.parse_llm", return_value=mock_resume) as mock_parse, \
+             patch("llm_resume_parser.time.sleep"):
+            parse_resume_pdf("fake.pdf")
+        user_prompt = mock_parse.call_args.args[2]
+        assert "UniqueRawTextABC123" in user_prompt
+
+    def test_response_format_is_resume(self):
+        mock_doc = self._make_mock_doc(["Some resume text"])
+        mock_resume = Resume(cleared_text="cleaned")
+        with patch("llm_resume_parser.pymupdf.open", return_value=mock_doc), \
+             patch("llm_resume_parser.check_resume", return_value=True), \
+             patch("llm_resume_parser.parse_llm", return_value=mock_resume) as mock_parse, \
+             patch("llm_resume_parser.time.sleep"):
+            parse_resume_pdf("fake.pdf")
+        assert mock_parse.call_args.args[3] is Resume

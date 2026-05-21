@@ -89,7 +89,7 @@ def get_resume_db(user_id: int):
         """select resume_text from users where user_id = ?""",
         (user_id,)
     )
-    res = cursor.fetchall()[0]
+    res = cursor.fetchall()[0][0]
     conn.close()
     return res
 

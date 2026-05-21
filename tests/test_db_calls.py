@@ -97,13 +97,13 @@ class TestSaveAndGetResume:
     def test_save_and_retrieve(self, seeded_db):
         db_calls.save_resume_db(42, "Python developer with 5 years experience")
         result = db_calls.get_resume_db(42)
-        assert result[0] == "Python developer with 5 years experience"
+        assert result == "Python developer with 5 years experience"
 
     def test_overwrite_existing_resume(self, seeded_db):
         db_calls.save_resume_db(42, "First resume")
         db_calls.save_resume_db(42, "Updated resume")
         result = db_calls.get_resume_db(42)
-        assert result[0] == "Updated resume"
+        assert result == "Updated resume"
 
 
 class TestUserAnswered:

@@ -50,42 +50,42 @@ class TestResponseEvaluator:
 
     def test_answer_in_user_prompt(self):
         call_args = self._capture(answer="I led the database migration single-handedly.")
-        user_prompt = call_args.args[0]
+        user_prompt = call_args.args[2]
         assert "I led the database migration single-handedly." in user_prompt
 
     def test_question_in_system_prompt(self):
         call_args = self._capture(question="Describe a conflict you resolved.")
-        system_prompt = call_args.args[2]
+        system_prompt = call_args.args[4]
         assert "Describe a conflict you resolved." in system_prompt
 
     def test_response_format_is_feedback(self):
         call_args = self._capture()
-        assert call_args.args[1] is Feedback
+        assert call_args.args[3] is Feedback
 
     def test_prefounded_answer_text_in_system_prompt(self):
         prefounded = [{"answer": "UniqueAnswerXYZ123", "mark": "good", "reason": "Clear STAR"}]
         call_args = self._capture(prefounded=prefounded)
-        assert "UniqueAnswerXYZ123" in call_args.args[2]
+        assert "UniqueAnswerXYZ123" in call_args.args[4]
 
     def test_bad_mark_converted_to_zero_in_prompt(self):
         prefounded = [{"answer": "Gave up.", "mark": "bad", "reason": "No effort"}]
         call_args = self._capture(prefounded=prefounded)
-        assert "0.0" in call_args.args[2]
+        assert "0.0" in call_args.args[4]
 
     def test_middle_mark_converted_to_half_in_prompt(self):
         prefounded = [{"answer": "Did okay.", "mark": "middle", "reason": "Adequate"}]
         call_args = self._capture(prefounded=prefounded)
-        assert "0.5" in call_args.args[2]
+        assert "0.5" in call_args.args[4]
 
     def test_good_mark_converted_to_one_in_prompt(self):
         prefounded = [{"answer": "Excellent.", "mark": "good", "reason": "Outstanding"}]
         call_args = self._capture(prefounded=prefounded)
-        assert "1.0" in call_args.args[2]
+        assert "1.0" in call_args.args[4]
 
     def test_prefounded_reason_in_system_prompt(self):
         prefounded = [{"answer": "Some answer", "mark": "good", "reason": "UniqueReasonABC456"}]
         call_args = self._capture(prefounded=prefounded)
-        assert "UniqueReasonABC456" in call_args.args[2]
+        assert "UniqueReasonABC456" in call_args.args[4]
 
 
 class TestQuestionListBuilder:
@@ -97,24 +97,24 @@ class TestQuestionListBuilder:
 
     def test_resume_text_in_user_prompt(self):
         call_args = self._capture(resume="Senior Python engineer at a fintech startup")
-        assert "Senior Python engineer at a fintech startup" in call_args.args[0]
+        assert "Senior Python engineer at a fintech startup" in call_args.args[2]
 
     def test_response_format_is_resume_plan(self):
         call_args = self._capture()
-        assert call_args.args[1] is ResumePlan
+        assert call_args.args[3] is ResumePlan
 
     def test_questions_appear_in_system_prompt(self):
         questions = [{"question_id": 7, "question": "UniqueQuestionTextQQQ"}]
         call_args = self._capture(questions=questions)
-        assert "UniqueQuestionTextQQQ" in call_args.args[2]
+        assert "UniqueQuestionTextQQQ" in call_args.args[4]
 
     def test_user_answered_list_in_system_prompt(self):
         call_args = self._capture(user_answered=[3, 7])
-        assert "[3, 7]" in call_args.args[2]
+        assert "[3, 7]" in call_args.args[4]
 
     def test_empty_user_answered_in_prompt(self):
         call_args = self._capture(user_answered=[])
-        assert "[]" in call_args.args[2]
+        assert "[]" in call_args.args[4]
 
     def test_returns_plan_ids(self):
         mock_plan = ResumePlan(plan=[2, 5, 8, 1, 4])
@@ -266,35 +266,26 @@ class TestParseGemini:
 
 
 class TestParseLlmDispatch:
-    def test_mistral_provider_calls_parse_mistral(self, monkeypatch):
-        monkeypatch.setattr(llm_calls, "llm_provider", "mistral")
-        monkeypatch.setattr(llm_calls, "llm_model", "mistral-small")
+    def test_mistral_provider_calls_parse_mistral(self):
         with patch("llm_calls.parse_mistral", return_value=_make_feedback()) as mock:
-            llm_calls.parse_llm("prompt", Feedback)
+            llm_calls.parse_llm("mistral", "mistral-small", "prompt", Feedback)
         mock.assert_called_once_with("mistral-small", "prompt", Feedback, None, 2000)
 
-    def test_openrouter_provider_calls_parse_openrouter(self, monkeypatch):
-        monkeypatch.setattr(llm_calls, "llm_provider", "openrouter")
-        monkeypatch.setattr(llm_calls, "llm_model", "deepseek/v3")
+    def test_openrouter_provider_calls_parse_openrouter(self):
         with patch("llm_calls.parse_openrouter", return_value=_make_feedback()) as mock:
-            llm_calls.parse_llm("prompt", Feedback)
+            llm_calls.parse_llm("openrouter", "deepseek/v3", "prompt", Feedback)
         mock.assert_called_once_with("deepseek/v3", "prompt", Feedback, None, 2000)
 
-    def test_gemini_provider_calls_parse_gemini(self, monkeypatch):
-        monkeypatch.setattr(llm_calls, "llm_provider", "gemini")
-        monkeypatch.setattr(llm_calls, "llm_model", "gemini-flash")
+    def test_gemini_provider_calls_parse_gemini(self):
         with patch("llm_calls.parse_gemini", return_value=_make_feedback()) as mock:
-            llm_calls.parse_llm("prompt", Feedback)
+            llm_calls.parse_llm("gemini", "gemini-flash", "prompt", Feedback)
         mock.assert_called_once_with("gemini-flash", "prompt", Feedback, None, 2000)
 
-    def test_system_prompt_forwarded(self, monkeypatch):
-        monkeypatch.setattr(llm_calls, "llm_provider", "mistral")
-        monkeypatch.setattr(llm_calls, "llm_model", "mistral-small")
+    def test_system_prompt_forwarded(self):
         with patch("llm_calls.parse_mistral", return_value=_make_feedback()) as mock:
-            llm_calls.parse_llm("prompt", Feedback, system_prompt="sys")
+            llm_calls.parse_llm("mistral", "mistral-small", "prompt", Feedback, system_prompt="sys")
         mock.assert_called_once_with("mistral-small", "prompt", Feedback, "sys", 2000)
 
-    def test_unknown_provider_raises(self, monkeypatch):
-        monkeypatch.setattr(llm_calls, "llm_provider", "unknown_provider")
+    def test_unknown_provider_raises(self):
         with pytest.raises(ValueError, match="Unknown LLM_PROVIDER"):
-            llm_calls.parse_llm("prompt", Feedback)
+            llm_calls.parse_llm("unknown_provider", "model", "prompt", Feedback)

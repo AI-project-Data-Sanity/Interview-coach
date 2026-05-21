@@ -88,7 +88,7 @@ class TestSaveResume:
 class TestGetQuestionList:
     def test_returns_plan_from_builder(self):
         with patch("app.get_user_answered", return_value=[]), \
-             patch("app.get_resume_db", return_value=("resume text",)), \
+             patch("app.get_resume_db", return_value="resume text"), \
              patch("app.get_all_questions", return_value=[{"question_id": i} for i in range(10)]), \
              patch("app.question_list_builder", return_value=[1, 4, 7, 2, 5]) as mock_builder:
             from app import get_question_list

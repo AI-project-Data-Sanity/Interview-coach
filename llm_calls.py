@@ -81,7 +81,7 @@ def parse_gemini(model_name: str, user_prompt: str, response_format, system_prom
 
 
 def parse_llm(llm_provider, llm_model, user_prompt: str, response_format, system_prompt=None, max_tokens: int = 2000):
-    print('in parse_llm, provider = ', provider)
+    print('in parse_llm, provider = ', llm_provider)
     match llm_provider:
         case "gemini":
             return parse_gemini(llm_model, user_prompt, response_format, system_prompt, max_tokens)
