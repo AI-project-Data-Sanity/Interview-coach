@@ -6,8 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from telegram.ext import MessageHandler
 
 import messages
+from telegram.ext import ConversationHandler
+
 from bot import (
-    WAITING_FOR_PDF, AFTER_RESUME, IN_INTERVIEW,
+    AFTER_START, WAITING_FOR_PDF, AFTER_RESUME, IN_INTERVIEW,
+    start,
     handle_unexpected_in_pdf_state,
     handle_unexpected_in_interview,
     handle_document,
@@ -43,6 +46,56 @@ def _make_doc_update(mime_type="application/pdf", file_id="abc123"):
     update.message.document.get_file = AsyncMock(return_value=AsyncMock())
     update.message.from_user.id = 42
     return update
+
+
+# --- start ---
+
+class TestStart:
+    def _make_start_update(self, user_id=42, username="alice"):
+        update = _make_update()
+        update.message.from_user.id = user_id
+        update.message.from_user.username = username
+        return update
+
+    @pytest.mark.asyncio
+    async def test_returns_after_start(self):
+        update = self._make_start_update()
+        with patch("bot.register_user"):
+            result = await start(update, _make_context())
+        assert result == AFTER_START
+
+    @pytest.mark.asyncio
+    async def test_sends_welcome_message(self):
+        update = self._make_start_update()
+        with patch("bot.register_user"):
+            await start(update, _make_context())
+        assert _replied_texts(update) == [messages.WELCOME]
+
+    @pytest.mark.asyncio
+    async def test_clears_stale_session_data(self):
+        """Returning user's old question list must not bleed into the new session."""
+        update = self._make_start_update()
+        context = _make_context()
+        context.user_data["question_ids"] = [1, 2, 3]
+        context.user_data["current_index"] = 2
+        with patch("bot.register_user"):
+            await start(update, context)
+        assert context.user_data == {}
+
+    @pytest.mark.asyncio
+    async def test_registration_failure_sends_error(self):
+        exc = Exception("DB unavailable")
+        update = self._make_start_update()
+        with patch("bot.register_user", side_effect=exc):
+            await start(update, _make_context())
+        assert _replied_texts(update) == [f"{messages.REGISTRATION_FAILED}\n{exc}"]
+
+    @pytest.mark.asyncio
+    async def test_registration_failure_ends_conversation(self):
+        update = self._make_start_update()
+        with patch("bot.register_user", side_effect=Exception("DB unavailable")):
+            result = await start(update, _make_context())
+        assert result == ConversationHandler.END
 
 
 # --- handle_unexpected_in_pdf_state ---
@@ -159,6 +212,48 @@ class TestHandleAnswer:
         with patch("bot.get_llm_feedback", side_effect=Exception("LLM timeout")):
             result = await handle_answer(update, _make_context(question_ids=[1, 2, 3]))
         assert result == IN_INTERVIEW
+
+    @pytest.mark.asyncio
+    async def test_mid_interview_shows_feedback_then_next_question(self):
+        update = _make_update()
+        update.message.text = "My answer"
+        update.message.from_user.id = 42
+        with patch("bot.get_llm_feedback", return_value="Good answer!"), \
+             patch("bot.get_question_text_by_id", return_value="Next question text"):
+            result = await handle_answer(update, _make_context(question_ids=[1, 2, 3], index=0))
+        texts = _replied_texts(update)
+        assert any("Good answer!" in t for t in texts)
+        assert any("Next question text" in t for t in texts)
+        assert result == IN_INTERVIEW
+
+    @pytest.mark.asyncio
+    async def test_mid_interview_advances_index(self):
+        update = _make_update()
+        update.message.text = "My answer"
+        update.message.from_user.id = 42
+        context = _make_context(question_ids=[1, 2, 3], index=0)
+        with patch("bot.get_llm_feedback", return_value="feedback"), \
+             patch("bot.get_question_text_by_id", return_value="Q"):
+            await handle_answer(update, context)
+        assert context.user_data["current_index"] == 1
+
+    @pytest.mark.asyncio
+    async def test_last_question_shows_complete_message(self):
+        update = _make_update()
+        update.message.text = "My final answer"
+        update.message.from_user.id = 42
+        with patch("bot.get_llm_feedback", return_value="Great!"):
+            await handle_answer(update, _make_context(question_ids=[1, 2, 3], index=2))
+        assert messages.INTERVIEW_COMPLETE in _replied_texts(update)
+
+    @pytest.mark.asyncio
+    async def test_last_question_ends_session(self):
+        update = _make_update()
+        update.message.text = "My final answer"
+        update.message.from_user.id = 42
+        with patch("bot.get_llm_feedback", return_value="Great!"):
+            await handle_answer(update, _make_context(question_ids=[1, 2, 3], index=2))
+        assert messages.SESSION_ENDED in _replied_texts(update)
 
 
 # --- error_handler ---
