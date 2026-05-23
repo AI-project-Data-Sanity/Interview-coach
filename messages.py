@@ -1,0 +1,26 @@
+SEND_PDF = "Please send your resume as a PDF file."
+REPLY_WITH_TEXT = "Please reply with text. Send your answer as a message."
+WRONG_FILE_TYPE = "That doesn't look like a PDF. Please send a PDF file."
+RESUME_PROCESSING = "Received your resume, processing..."
+RESUME_SAVE_FAILED = "Failed to save resume. Please try again."
+RESUME_SAVED = "Resume saved!\nUse /start_interview to begin, or /finish to end the session."
+PREPARING_QUESTIONS = "Preparing your questions..."
+QUESTIONS_FAILED = "Failed to generate questions. Please try again."
+QUESTIONS_EMPTY = "Could not generate questions. Please try uploading your resume again with /send_resume."
+QUESTION_LOAD_FAILED = "Failed to load question. Please try again."
+ANSWER_TOO_LONG = "Your answer is too long. Please send a shorter one (up to 3000 characters)."
+FEEDBACK_FAILED = "Failed to get feedback. Please try again."
+INTERVIEW_COMPLETE = "Interview complete! Well done."
+SESSION_ENDED = "Session ended. Use /start to begin again."
+REGISTRATION_FAILED = "Registration failed. Please try again later."
+WELCOME = (
+    "Welcome to Interview Coach!\n"
+    "Use /send_resume to upload your resume PDF.\n"
+    "Use /finish to end the session."
+)
+HELP_TEXT = (
+    "/start — Register and start\n"
+    "/send_resume — Upload your resume PDF\n"
+    "/start_interview — Begin the interview\n"
+    "/finish — End the session"
+)

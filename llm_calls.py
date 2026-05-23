@@ -100,10 +100,12 @@ def parse_llm(llm_provider, llm_model, user_prompt: str, response_format, system
                 case _:
                     raise ValueError(f"Unknown LLM_PROVIDER: {llm_provider!r}")
         except Exception as e:
-            if str(e).strip("Unknown LLM_PROVIDER") or attempt == 3:
+            if isinstance(e, ValueError) or attempt == 3:
                 raise
             logger.exception(f"Exception while calling llm: provider: {llm_provider!r} \n exception: {e!r}")
-            time.sleep(60 * (attempt + 1))
+            time.sleep(10 * (attempt + 1))
+            continue
+        break
 
     logger.debug("  result: %s", result)
     return result

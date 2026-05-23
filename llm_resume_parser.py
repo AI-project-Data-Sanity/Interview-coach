@@ -97,7 +97,7 @@ def parse_resume_pdf(pdf_path: Union[str, Path]) -> str:
     if not check_resume(raw_text):
         raise Exception("Not an IT resume.")
 
-    time.sleep(60)
+    time.sleep(10)
     system_prompt = f"""
         You are an attentive editor. Extract as much information as you can from the raw resume text.
         Remove common contact information. Take just text from headers and tables. 
