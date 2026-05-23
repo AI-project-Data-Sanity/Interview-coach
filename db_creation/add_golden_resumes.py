@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     conn = sqlite3.connect(db_path)
     """CAREFUL: deletes resumes golden set"""
-    '''conn.execute("""delete from resumes_golden;""")'''
-    """conn.commit()"""
+    conn.execute("""delete from resumes_golden;""")
+    conn.commit()
 
     for folder in ['val', 'test']:
         folder_path = os.path.join(golden_resumes_path, folder)
@@ -42,7 +42,7 @@ if __name__ == "__main__":
             selected_plan = None
             if resume_file in resume_index:
                 selected_plan = [
-                    q['question_id'] for q in plans['resumes'][resume_index[resume_file]]['selected_questions']
+                    int(q['question_id']) for q in plans['resumes'][resume_index[resume_file]]['selected_questions']
                 ]
             add_golden_resume(conn, resume_file, selected_plan is not None, folder, json.dumps(selected_plan))
 

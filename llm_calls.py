@@ -1,4 +1,5 @@
 import json
+import time
 import logging
 import os
 from dotenv import load_dotenv
@@ -87,15 +88,23 @@ def parse_llm(llm_provider, llm_model, user_prompt: str, response_format, system
     logger.info("LLM call | provider=%s model=%s format=%s", llm_provider, llm_model, response_format.__name__)
     logger.debug("  system_prompt: %s", system_prompt)
     logger.debug("  user_prompt: %s", user_prompt)
-    match llm_provider:
-        case "gemini":
-            result = parse_gemini(llm_model, user_prompt, response_format, system_prompt, max_tokens)
-        case "mistral":
-            result = parse_mistral(llm_model, user_prompt, response_format, system_prompt, max_tokens)
-        case "openrouter":
-            result = parse_openrouter(llm_model, user_prompt, response_format, system_prompt, max_tokens)
-        case _:
-            raise ValueError(f"Unknown LLM_PROVIDER: {llm_provider!r}")
+    for attempt in range(4):
+        try:
+            match llm_provider:
+                case "gemini":
+                    result = parse_gemini(llm_model, user_prompt, response_format, system_prompt, max_tokens)
+                case "mistral":
+                    result = parse_mistral(llm_model, user_prompt, response_format, system_prompt, max_tokens)
+                case "openrouter":
+                    result = parse_openrouter(llm_model, user_prompt, response_format, system_prompt, max_tokens)
+                case _:
+                    raise ValueError(f"Unknown LLM_PROVIDER: {llm_provider!r}")
+        except Exception as e:
+            if str(e).strip("Unknown LLM_PROVIDER") or attempt == 3:
+                raise
+            logger.exception(f"Exception while calling llm: provider: {llm_provider!r} \n exception: {e!r}")
+            time.sleep(60 * (attempt + 1))
+
     logger.debug("  result: %s", result)
     return result
 
@@ -171,23 +180,19 @@ def response_evaluator(question_text: str, answer_text: str, prefounded_answers:
     return parse_llm(llm_assessment_provider, llm_assessment_model, user_prompt, Feedback, system_prompt)
 
 class ResumePlan(BaseModel):
-    question_impact: int = Field(description='Question id that checks for impact and achievements')
-    question_collaboration: int = Field(description='Question id that checks for collaboration and nonconflictness')
-    question_ownership: int = Field(description='Question id that checks for ownership and ability to take the initiative')
-    question_selfawareness: int = Field(description='Question id that checks for self-awerness')
-    question_problem_solving: int = Field(description='Question id that checks for problem solving capabilities')
-    plan: List[int] = Field(description='List all 5 questions chosen previously')
+    plan: List[int] = Field(description='List EXACTLY 5 questions chosen for the interview based on the resume. ')
 
 def question_list_builder(raw_resume: str, questions: list, user_answered= []) -> list:
     system_prompt = f"""
         You are an HR in a big firm. Make a structured plan of behavioral interview from the given resume text.
         Ask exactly 5 questions from the list provided. Return just the questions ids. 
         Chosen questions should check for 
-        1 Impact and Achievements
-        2 Ability to collaboration and behavior in conflicts
-        3 Ownership and ability to take the initiative
-        4 Self-awerness
-        5 Problem solving capbilities
+        Impact and Achievements
+        Ability to collaboration and behavior in conflicts
+        Ownership and ability to take the initiative
+        Self-awerness
+        Problem solving capbilities
+        
         QUESTIONS:
         {questions}
         

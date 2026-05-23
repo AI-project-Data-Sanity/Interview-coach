@@ -1,3 +1,4 @@
+import json
 import os
 import numpy as np
 import time
@@ -27,14 +28,7 @@ def mark_evaluator(split = 'val'):
     for g in tqdm(golden_set[0:1]):
         question_text = get_question_by_id(g['question_id'])
         prefounded_answers = get_answers_by_question_id(g['question_id'])
-        for attempt in range(3):
-            try:
-                feedback = response_evaluator(question_text, g['answer'], prefounded_answers)
-                break
-            except Exception:
-                if attempt == 2:
-                    raise
-                time.sleep(10 * (attempt + 1))
+        feedback = response_evaluator(question_text, g['answer'], prefounded_answers)
         got_marks.append(feedback.mark)
         golden_marks.append(mark_to_float[g['mark']])
 
@@ -57,43 +51,13 @@ def plan_builder_evaluator(golden_resumes_path: str, split :str = 'val'):
 
     golden_set = get_golden_resumes(split)
     questions = get_all_questions()
-    parsed_text = ''
     for g in tqdm(golden_set):
-        golden_plan = g['questions_plan']
-        done = False
-        for attempt in range(3):
-            try:
-                parsed_text = parse_resume_pdf(os.path.join(golden_resumes_path, split, g['filename']))
-                break
-            except Exception as e:
-                print('Parser Exception:', e)
-                if str(e) == "Not an IT resume." or str(e) == "Too long for a resume.":
-                    done = True
-                    if g['is_it_resume']:
-                        false_negatives += 1
-                        fn_list.append(g['filename'])
-                    else:
-                        true_negatives += 1
-                        tn_list.append(g['filename'])
-                    break
-                else:
-                    if attempt == 2:
-                        raise
-                    time.sleep(10 * (attempt + 1))
-
-        if not done:
-            for attempt in range(3):
-                try:
-                    plan = question_list_builder(parsed_text, questions)
-                    break
-                except Exception as e:
-                    print('Plan builder exception', e)
-                    if attempt == 2:
-                        raise
-                    time.sleep(10 * (attempt + 1))
-
+        golden_plan = json.loads(g['questions_plan'])
+        try:
+            parsed_text = parse_resume_pdf(os.path.join(golden_resumes_path, split, g['filename']))
+            plan = question_list_builder(parsed_text, questions)
             ious.append(
-                len(np.intersect1d(plan, golden_plan, assume_unique=True)) / len(np.union1d(plan, golden_plan))
+                len(np.intersect1d(golden_plan, plan, assume_unique=True)) / len(np.union1d(golden_plan, plan))
             )
             if len(plan) != default_plan_len:
                 wrong_plan_len += 1
@@ -102,6 +66,17 @@ def plan_builder_evaluator(golden_resumes_path: str, split :str = 'val'):
                 false_positives += 1
                 fp_list.append(g['filename'])
 
+        except Exception as e:
+            print('Parser Exception:', e)
+            if str(e) == "Not an IT resume." or str(e) == "Too long for a resume.":
+                if g['is_it_resume']:
+                    false_negatives += 1
+                    fn_list.append(g['filename'])
+                else:
+                    true_negatives += 1
+                    tn_list.append(g['filename'])
+            else:
+                raise
 
     print('split = ', split)
     print('Right qualified as not IT resume: ', true_negatives)

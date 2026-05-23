@@ -87,6 +87,8 @@ def parse_resume_pdf(pdf_path: Union[str, Path]) -> str:
     """
     logger.info("parse_resume_pdf | path=%s", pdf_path)
     doc = pymupdf.open(pdf_path)
+    if len(doc) < 1:
+        raise Exception("Not an IT resume.")
     if len(doc) > 10:
         raise Exception("Too long for a resume.")
     raw_text = '\n'.join([page.get_text() for page in doc])
@@ -95,7 +97,7 @@ def parse_resume_pdf(pdf_path: Union[str, Path]) -> str:
     if not check_resume(raw_text):
         raise Exception("Not an IT resume.")
 
-    time.sleep(10)
+    time.sleep(60)
     system_prompt = f"""
         You are an attentive editor. Extract as much information as you can from the raw resume text.
         Remove common contact information. Take just text from headers and tables. 
