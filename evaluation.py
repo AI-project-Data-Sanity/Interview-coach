@@ -25,7 +25,7 @@ def mark_evaluator(split = 'val'):
     golden_set = get_golden_answers(split)
     golden_marks = []
     got_marks = []
-    for g in tqdm(golden_set[0:1]):
+    for g in tqdm(golden_set):
         question_text = get_question_by_id(g['question_id'])
         prefounded_answers = get_answers_by_question_id(g['question_id'])
         feedback = response_evaluator(question_text, g['answer'], prefounded_answers)
@@ -56,18 +56,18 @@ def plan_builder_evaluator(golden_resumes_path: str, split :str = 'val'):
         try:
             parsed_text = parse_resume_pdf(os.path.join(golden_resumes_path, split, g['filename']))
             plan = question_list_builder(parsed_text, questions)
-            ious.append(
-                len(np.intersect1d(golden_plan, plan, assume_unique=True)) / len(np.union1d(golden_plan, plan))
-            )
             if len(plan) != default_plan_len:
                 wrong_plan_len += 1
 
             if not g['is_it_resume']:
                 false_positives += 1
                 fp_list.append(g['filename'])
+                continue
 
+            ious.append(
+                len(np.intersect1d(golden_plan, plan, assume_unique=True)) / len(np.union1d(golden_plan, plan))
+            )
         except Exception as e:
-            print('Parser Exception:', e)
             if str(e) == "Not an IT resume." or str(e) == "Too long for a resume.":
                 if g['is_it_resume']:
                     false_negatives += 1
@@ -93,4 +93,4 @@ if __name__ == "__main__":
     Script to evaluate the quality of the whole system
     """
     plan_builder_evaluator(golden_resumes_path, 'val')
-    # mark_evaluator(split = 'val')
+    mark_evaluator(split = 'val')

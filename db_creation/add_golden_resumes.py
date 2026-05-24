@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     conn = sqlite3.connect(db_path)
     """CAREFUL: deletes resumes golden set"""
-    conn.execute("""delete from resumes_golden;""")
-    conn.commit()
+    '''conn.execute("""delete from resumes_golden;""")'''
+    """conn.commit()"""
 
     for folder in ['val', 'test']:
         folder_path = os.path.join(golden_resumes_path, folder)
